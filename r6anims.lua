@@ -1,3 +1,5 @@
+print("Zot remembers every animation.")
+
 -- By Zot
 local Players=game:GetService("Players")
 local TweenService=game:GetService("TweenService")
