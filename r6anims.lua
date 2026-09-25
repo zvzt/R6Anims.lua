@@ -116,7 +116,7 @@ local function makeDraggable(dragHandle,targetFrame)
 		local size=targetFrame.AbsoluteSize
 		local viewport=camera.ViewportSize
 		local topOffset=-57
-		local bottomOffset=68
+		local bottomOffset=57
 
 		local x=math.clamp(
 			startPos.X+delta.X,
