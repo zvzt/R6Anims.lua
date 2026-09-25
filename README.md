@@ -1,6 +1,6 @@
 # R6 Animations
 
-A compact Roblox Luau animation panel for R6 avatars with a draggable interface, minimizer, and a collection of classic animations.
+A compact Roblox Luau animation panel for R6 avatars with a draggable Onyx-style interface and a collection of classic animations.
 
 ## Preview
 
@@ -14,11 +14,23 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/zvzt/R6Anims.lua/refs
 
 ## Features
 
-- Draggable R6 animation panel
-- Minimized floating control
+- Draggable Onyx-style interface
+- Header-only minimize/restore behavior
+- Screen-edge drag clamping
 - One-click animation toggling
-- Automatic character refresh handling
+- Automatic character and Animator refresh handling
 - 30+ classic R6 animations
+- Rerun-safe UI replacement
+
+## UI
+
+The current interface uses the same dark Onyx styling as the rest of the tool set:
+
+- 10 px rounded window
+- Thin dark border
+- 38 px header
+- Minimize collapses the window to the header instead of spawning a separate mini window
+- Standard drag bounds use a `-57` top offset and `57` bottom offset
 
 ## Compatibility
 
