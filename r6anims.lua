@@ -1,283 +1,371 @@
 -- By Zot
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UIS = game:GetService("UserInputService")
-local player = Players.LocalPlayer
-local char = player.Character or player.CharacterAdded:Wait()
-local hum = char:WaitForChild("Humanoid")
+local Players=game:GetService("Players")
+local TweenService=game:GetService("TweenService")
+local UIS=game:GetService("UserInputService")
+local Workspace=game:GetService("Workspace")
 
-player.CharacterAdded:Connect(function(c)
-	char = c
-	hum = c:WaitForChild("Humanoid")
+local player=Players.LocalPlayer
+local playerGui=player:WaitForChild("PlayerGui")
+local targetParent=playerGui
+
+pcall(function()
+	if gethui then
+		targetParent=gethui()
+	else
+		targetParent=game:GetService("CoreGui")
+	end
 end)
 
-if player.PlayerGui:FindFirstChild("R6") then
-	player.PlayerGui.R6:Destroy()
+local WINDOW=Color3.fromRGB(0,0,0)
+local WINDOW_STROKE=Color3.fromRGB(45,45,50)
+local PANEL=Color3.fromRGB(18,18,22)
+local PANEL_STROKE=Color3.fromRGB(32,32,36)
+local BUTTON=Color3.fromRGB(24,24,28)
+local BUTTON_HOVER=Color3.fromRGB(32,32,38)
+local BUTTON_ACTIVE=Color3.fromRGB(48,48,58)
+local BUTTON_STROKE=Color3.fromRGB(40,40,48)
+local TEXT=Color3.fromRGB(240,240,245)
+local BUTTON_TEXT=Color3.fromRGB(225,225,232)
+local MUTED=Color3.fromRGB(150,150,160)
+
+local old=targetParent:FindFirstChild("R6")
+if old then
+	old:Destroy()
 end
 
-local BG = Color3.fromRGB(0,0,0)
-local PANEL = Color3.fromRGB(0,0,0)
-local STROKE = Color3.fromRGB(255,255,255)
-local BTN = Color3.fromRGB(0,0,0)
-local BTN_HOVER = Color3.fromRGB(40,40,40)
-local ACTIVE = Color3.fromRGB(80,80,80)
-local currentTrack = nil
-local currentButton = nil
-local gui = Instance.new("ScreenGui")
-gui.Name = "R6"
-gui.ResetOnSpawn = false
-gui.Parent = player.PlayerGui
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0,520,0,380)
-main.Position = UDim2.new(0.5,-260,0.5,-190)
-main.BackgroundColor3 = BG
-main.BackgroundTransparency = 0
-main.Active = true
-Instance.new("UICorner", main).CornerRadius = UDim.new(0,12)
-local mainStroke = Instance.new("UIStroke", main)
-mainStroke.Color = STROKE
-mainStroke.Thickness = 1.5
-mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-local function dragify(frame)
-	local drag, start, pos
+if targetParent~=playerGui then
+	local oldPlayerGui=playerGui:FindFirstChild("R6")
+	if oldPlayerGui then
+		oldPlayerGui:Destroy()
+	end
+end
 
-	frame.InputBegan:Connect(function(i)
-		if i.UserInputType == Enum.UserInputType.MouseButton1 then
-			drag = true
-			start = i.Position
-			pos = frame.Position
-		end
-	end)
+local char=player.Character or player.CharacterAdded:Wait()
+local hum=char:WaitForChild("Humanoid")
+local animator=hum:FindFirstChildOfClass("Animator") or hum:WaitForChild("Animator")
 
-	UIS.InputChanged:Connect(function(i)
-		if drag and i.UserInputType == Enum.UserInputType.MouseMovement then
-			local delta = i.Position - start
-			frame.Position = UDim2.new(
-				pos.X.Scale,
-				pos.X.Offset + delta.X,
-				pos.Y.Scale,
-				pos.Y.Offset + delta.Y
+local currentTrack=nil
+local currentButton=nil
+
+local gui=Instance.new("ScreenGui")
+gui.Name="R6"
+gui.ResetOnSpawn=false
+gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+gui.Parent=targetParent
+
+local function corner(object,radius)
+	local c=Instance.new("UICorner",object)
+	c.CornerRadius=UDim.new(0,radius)
+	return c
+end
+
+local function stroke(object,color,thickness)
+	local s=Instance.new("UIStroke",object)
+	s.Color=color
+	s.Thickness=thickness
+	s.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+	return s
+end
+
+local function setButtonActive(button,state)
+	if not button or not button.Parent then
+		return
+	end
+	button.BackgroundColor3=state and BUTTON_ACTIVE or BUTTON
+end
+
+local function makeDraggable(dragHandle,targetFrame)
+	targetFrame=targetFrame or dragHandle
+
+	local dragging=false
+	local dragStart
+	local startPos
+
+	dragHandle.InputBegan:Connect(function(input)
+		if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+			dragging=true
+			dragStart=input.Position
+			startPos=Vector2.new(
+				targetFrame.Position.X.Offset,
+				targetFrame.Position.Y.Offset
 			)
+
+			input.Changed:Connect(function()
+				if input.UserInputState==Enum.UserInputState.End then
+					dragging=false
+				end
+			end)
 		end
 	end)
 
-	UIS.InputEnded:Connect(function(i)
-		if i.UserInputType == Enum.UserInputType.MouseButton1 then
-			drag = false
+	UIS.InputChanged:Connect(function(input)
+		if not dragging then
+			return
+		end
+
+		if input.UserInputType~=Enum.UserInputType.MouseMovement and input.UserInputType~=Enum.UserInputType.Touch then
+			return
+		end
+
+		local camera=Workspace.CurrentCamera
+		if not camera then
+			return
+		end
+
+		local delta=input.Position-dragStart
+		local size=targetFrame.AbsoluteSize
+		local viewport=camera.ViewportSize
+		local topOffset=-57
+		local bottomOffset=68
+
+		local x=math.clamp(
+			startPos.X+delta.X,
+			0,
+			math.max(0,viewport.X-size.X)
+		)
+
+		local y=math.clamp(
+			startPos.Y+delta.Y,
+			topOffset,
+			math.max(topOffset,viewport.Y-size.Y-bottomOffset)
+		)
+
+		targetFrame.Position=UDim2.fromOffset(x,y)
+	end)
+
+	UIS.InputEnded:Connect(function(input)
+		if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+			dragging=false
 		end
 	end)
 end
 
-dragify(main)
+local main=Instance.new("Frame",gui)
+main.Name="SlateWindow_R6Animations"
+main.Size=UDim2.fromOffset(360,445)
+main.BackgroundColor3=WINDOW
+main.BorderSizePixel=0
+main.ClipsDescendants=true
+main.Active=true
+corner(main,10)
+stroke(main,WINDOW_STROKE,1.2)
 
-local top = Instance.new("Frame", main)
-top.Size = UDim2.new(1,0,0,44)
-top.BackgroundColor3 = PANEL
-top.BorderSizePixel = 0
-Instance.new("UICorner", top).CornerRadius = UDim.new(0,12)
-local killBtn = Instance.new("TextButton", top)
-killBtn.Size = UDim2.new(0,58,1,0)
-killBtn.Position = UDim2.new(0,6,0,0)
-killBtn.Text = "KILL"
-killBtn.BackgroundTransparency = 1
-killBtn.Font = Enum.Font.GothamBold
-killBtn.TextSize = 13
-killBtn.TextColor3 = Color3.fromRGB(255,255,255)
-killBtn.TextStrokeTransparency = 1
-killBtn.AutoButtonColor = false
-killBtn.MouseEnter:Connect(function()
-	TweenService:Create(
-		killBtn,
-		TweenInfo.new(0.12),
-		{TextColor3 = Color3.fromRGB(160,160,160)}
-	):Play()
-end)
-
-killBtn.MouseLeave:Connect(function()
-	TweenService:Create(
-		killBtn,
-		TweenInfo.new(0.12),
-		{TextColor3 = Color3.fromRGB(255,255,255)}
-	):Play()
-end)
-
-local title = Instance.new("TextLabel", top)
-title.Size = UDim2.new(1,-128,1,0)
-title.Position = UDim2.new(0,64,0,0)
-title.Text = "R6 Animations"
-title.BackgroundTransparency = 1
-title.Font = Enum.Font.GothamBold
-title.TextSize = 20
-title.TextColor3 = Color3.new(1,1,1)
-title.TextStrokeTransparency = 1
-title.RichText = false
-local miniBtn = Instance.new("TextButton", top)
-miniBtn.Size = UDim2.new(0,40,1,0)
-miniBtn.Position = UDim2.new(1,-40,0,0)
-miniBtn.Text = "-"
-miniBtn.BackgroundTransparency = 1
-miniBtn.Font = Enum.Font.Code
-miniBtn.TextSize = 22
-miniBtn.TextColor3 = Color3.fromRGB(255,255,255)
-miniBtn.TextStrokeTransparency = 1
-miniBtn.AutoButtonColor = false
-local mini = Instance.new("Frame", gui)
-mini.Size = UDim2.new(0,50,0,50)
-mini.BackgroundColor3 = BG
-mini.Visible = false
-mini.Active = true
-Instance.new("UICorner", mini).CornerRadius = UDim.new(1,0)
-local miniStroke = Instance.new("UIStroke", mini)
-miniStroke.Color = STROKE
-miniStroke.Thickness = 1.5
-miniStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-local z = Instance.new("TextButton", mini)
-z.Size = UDim2.new(1,0,1,0)
-z.Text = "Z"
-z.BackgroundTransparency = 1
-z.Font = Enum.Font.Code
-z.TextSize = 20
-z.TextColor3 = Color3.fromRGB(255,255,255)
-z.TextStrokeTransparency = 1
-z.AutoButtonColor = false
-z.Active = false
-
-dragify(mini)
-miniBtn.MouseButton1Click:Connect(function()
-	mini.Position = main.Position
-	main.Visible = false
-	mini.Visible = true
-end)
-
-z.MouseButton1Click:Connect(function()
-	main.Position = mini.Position
-	main.Visible = true
-	mini.Visible = false
-end)
-
-local scroll = Instance.new("ScrollingFrame", main)
-scroll.Position = UDim2.new(0,10,0,52)
-scroll.Size = UDim2.new(1,-20,1,-72)
-scroll.BackgroundTransparency = 1
-scroll.AutomaticCanvasSize = Enum.AutomaticSize.None
-scroll.ScrollBarThickness = 4
-scroll.ScrollBarImageColor3 = Color3.fromRGB(255,255,255)
-scroll.TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
-scroll.BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png"
-
-local grid = Instance.new("UIGridLayout", scroll)
-grid.CellSize = UDim2.new(0,150,0,42)
-grid.CellPadding = UDim2.new(0,8,0,8)
-grid.StartCorner = Enum.StartCorner.TopLeft
-
-local UIPadding = Instance.new("UIPadding", scroll)
-UIPadding.PaddingTop = UDim.new(0,6)
-UIPadding.PaddingBottom = UDim.new(0,6)
-UIPadding.PaddingLeft = UDim.new(0,4)
-UIPadding.PaddingRight = UDim.new(0,4)
-
-local footer = Instance.new("TextLabel", main)
-footer.Size = UDim2.new(1,0,0,20)
-footer.Position = UDim2.new(0,0,1,-20)
-footer.BackgroundTransparency = 1
-footer.Text = "by Zxt :>"
-footer.Font = Enum.Font.Code
-footer.TextSize = 12
-footer.TextColor3 = Color3.fromRGB(255,255,255)
-footer.TextStrokeTransparency = 1
-
-local buttons = {}
-local function createButton(name)
-	local b = Instance.new("TextButton")
-	b.Parent = scroll
-	b.Size = UDim2.new(0,150,0,42)
-	b.Text = name
-	b.Font = Enum.Font.GothamBold
-	b.TextSize = 14
-	b.TextXAlignment = Enum.TextXAlignment.Center
-	b.TextYAlignment = Enum.TextYAlignment.Center
-	b.BackgroundColor3 = BTN
-	b.TextColor3 = Color3.new(1,1,1)
-	b.TextStrokeTransparency = 1
-	b.AutoButtonColor = false
-	b.RichText = false
-
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
-
-	local s = Instance.new("UIStroke", b)
-	s.Color = STROKE
-	s.Thickness = 1.5
-	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-	b.MouseEnter:Connect(function()
-		if b.BackgroundColor3 ~= ACTIVE then
-			TweenService:Create(
-				b,
-				TweenInfo.new(0.15),
-				{BackgroundColor3 = BTN_HOVER}
-			):Play()
-		end
-	end)
-
-	b.MouseLeave:Connect(function()
-		if b.BackgroundColor3 ~= ACTIVE then
-			TweenService:Create(
-				b,
-				TweenInfo.new(0.15),
-				{BackgroundColor3 = BTN}
-			):Play()
-		end
-	end)
-
-	buttons[name] = b
-	return b
+local camera=Workspace.CurrentCamera
+if camera then
+	local viewport=camera.ViewportSize
+	main.Position=UDim2.fromOffset(
+		math.floor((viewport.X-main.Size.X.Offset)/2),
+		math.floor((viewport.Y-main.Size.Y.Offset)/2)
+	)
+else
+	main.Position=UDim2.new(.5,-180,.5,-222)
 end
 
-local names = {
-	"Salute",
-	"HeadThrow","FloatingHead","Crouch","FloorCrawl","DinoWalk",
-	"JumpingJacks","HeroJump","Faint","FloorFaint",
-	"Levitate","Dab","Spinner","FloatSit",
-	"MovingDance","WeirdMove","GlitchLevitate",
-	"SpinDance","MoonDance","FullPunch","SpinDance2","BowDown",
-	"SwordSlam","MegaInsane","SuperPunch","FullSwing",
-	"ArmTurbine","BarrelRoll","Scared","Insane","ArmDetach",
-	"SwordSlice","InsaneArms"
+local header=Instance.new("Frame",main)
+header.Name="HeaderBar"
+header.Size=UDim2.new(1,0,0,38)
+header.BackgroundTransparency=1
+header.BorderSizePixel=0
+header.Active=true
+
+local title=Instance.new("TextLabel",header)
+title.Text="R6 Animations"
+title.TextSize=20
+title.TextColor3=TEXT
+title.FontFace=Font.new(
+	"rbxasset://fonts/families/SourceSansPro.json",
+	Enum.FontWeight.Bold,
+	Enum.FontStyle.Normal
+)
+title.Position=UDim2.fromOffset(12,0)
+title.Size=UDim2.new(1,-90,1,0)
+title.BackgroundTransparency=1
+title.TextXAlignment=Enum.TextXAlignment.Left
+
+local minimizeBtn=Instance.new("TextButton",header)
+minimizeBtn.Name="MinimizeBtn"
+minimizeBtn.Active=true
+minimizeBtn.AutoButtonColor=false
+minimizeBtn.Text="—"
+minimizeBtn.TextSize=16
+minimizeBtn.TextColor3=MUTED
+minimizeBtn.Font=Enum.Font.GothamBold
+minimizeBtn.Size=UDim2.fromOffset(20,20)
+minimizeBtn.Position=UDim2.new(1,-52,0,9)
+minimizeBtn.BackgroundTransparency=1
+minimizeBtn.BorderSizePixel=0
+minimizeBtn.ZIndex=20
+
+local closeBtn=Instance.new("TextButton",header)
+closeBtn.Name="CloseBtn"
+closeBtn.Active=true
+closeBtn.AutoButtonColor=false
+closeBtn.Text="X"
+closeBtn.TextSize=14
+closeBtn.TextColor3=MUTED
+closeBtn.Font=Enum.Font.GothamBold
+closeBtn.Size=UDim2.fromOffset(20,20)
+closeBtn.Position=UDim2.new(1,-28,0,9)
+closeBtn.BackgroundTransparency=1
+closeBtn.BorderSizePixel=0
+closeBtn.ZIndex=20
+
+local function headerHover(button)
+	button.MouseEnter:Connect(function()
+		TweenService:Create(
+			button,
+			TweenInfo.new(.15),
+			{TextColor3=TEXT}
+		):Play()
+	end)
+
+	button.MouseLeave:Connect(function()
+		TweenService:Create(
+			button,
+			TweenInfo.new(.15),
+			{TextColor3=MUTED}
+		):Play()
+	end)
+end
+
+headerHover(minimizeBtn)
+headerHover(closeBtn)
+
+makeDraggable(header,main)
+
+local content=Instance.new("Frame",main)
+content.Position=UDim2.new(0,10,0,42)
+content.Size=UDim2.new(1,-20,1,-50)
+content.BackgroundTransparency=1
+
+local animationContainer=Instance.new("Frame",content)
+animationContainer.Name="AnimationPicker"
+animationContainer.Size=UDim2.new(1,0,1,0)
+animationContainer.BackgroundColor3=PANEL
+animationContainer.BorderSizePixel=0
+corner(animationContainer,9)
+stroke(animationContainer,PANEL_STROKE,1)
+
+local animationTitle=Instance.new("TextLabel",animationContainer)
+animationTitle.Size=UDim2.new(1,-16,0,20)
+animationTitle.Position=UDim2.fromOffset(8,4)
+animationTitle.BackgroundTransparency=1
+animationTitle.Text="Animations"
+animationTitle.TextColor3=TEXT
+animationTitle.Font=Enum.Font.GothamBold
+animationTitle.TextSize=11
+animationTitle.TextXAlignment=Enum.TextXAlignment.Left
+
+local animationScroll=Instance.new("ScrollingFrame",animationContainer)
+animationScroll.Name="AnimationList"
+animationScroll.Position=UDim2.new(0,8,0,26)
+animationScroll.Size=UDim2.new(1,-16,1,-34)
+animationScroll.BackgroundTransparency=1
+animationScroll.BorderSizePixel=0
+animationScroll.ScrollBarThickness=3
+animationScroll.ScrollBarImageTransparency=.25
+animationScroll.CanvasSize=UDim2.new(0,0,0,0)
+animationScroll.AutomaticCanvasSize=Enum.AutomaticSize.Y
+
+local animationGrid=Instance.new("UIGridLayout",animationScroll)
+animationGrid.CellSize=UDim2.fromOffset(154,28)
+animationGrid.CellPadding=UDim2.fromOffset(8,6)
+animationGrid.SortOrder=Enum.SortOrder.LayoutOrder
+
+local buttons={}
+
+local function createButton(name,layoutOrder)
+	local button=Instance.new("TextButton",animationScroll)
+	button.Name="Animation_"..name:gsub("%W","")
+	button.LayoutOrder=layoutOrder
+	button.BackgroundColor3=BUTTON
+	button.BorderSizePixel=0
+	button.AutoButtonColor=false
+	button.Text=name
+	button.TextColor3=BUTTON_TEXT
+	button.TextSize=10
+	button.Font=Enum.Font.GothamMedium
+	corner(button,4)
+	stroke(button,BUTTON_STROKE,1)
+
+	button.MouseEnter:Connect(function()
+		if currentButton~=button then
+			TweenService:Create(
+				button,
+				TweenInfo.new(.1),
+				{BackgroundColor3=BUTTON_HOVER}
+			):Play()
+		end
+	end)
+
+	button.MouseLeave:Connect(function()
+		if currentButton~=button then
+			TweenService:Create(
+				button,
+				TweenInfo.new(.1),
+				{BackgroundColor3=BUTTON}
+			):Play()
+		end
+	end)
+
+	buttons[name]=button
+	return button
+end
+
+local animations={
+	{"Salute","rbxassetid://186904307",true},
+	{"HeadThrow","rbxassetid://35154961",true},
+	{"FloatingHead","rbxassetid://121572214",false},
+	{"Crouch","rbxassetid://182724289",false},
+	{"FloorCrawl","rbxassetid://282574440",false},
+	{"DinoWalk","rbxassetid://204328711",false},
+	{"JumpingJacks","rbxassetid://429681631",false},
+	{"HeroJump","rbxassetid://184574340",true},
+	{"Faint","rbxassetid://181526230",false},
+	{"FloorFaint","rbxassetid://181525546",true},
+	{"Levitate","rbxassetid://313762630",false},
+	{"Dab","rbxassetid://183412246",true},
+	{"Spinner","rbxassetid://188632011",true},
+	{"FloatSit","rbxassetid://179224234",false},
+	{"MovingDance","rbxassetid://429703734",true},
+	{"WeirdMove","rbxassetid://215384594",false},
+	{"GlitchLevitate","rbxassetid://313762630",false},
+	{"SpinDance","rbxassetid://429730430",true},
+	{"MoonDance","rbxassetid://45834924",true},
+	{"FullPunch","rbxassetid://204062532",true},
+	{"SpinDance2","rbxassetid://186934910",true},
+	{"BowDown","rbxassetid://204292303",true},
+	{"SwordSlam","rbxassetid://204295235",true},
+	{"MegaInsane","rbxassetid://184574340",true},
+	{"SuperPunch","rbxassetid://126753849",true},
+	{"FullSwing","rbxassetid://218504594",true},
+	{"ArmTurbine","rbxassetid://259438880",false},
+	{"BarrelRoll","rbxassetid://136801964",true},
+	{"Scared","rbxassetid://180612465",true},
+	{"Insane","rbxassetid://33796059",false},
+	{"ArmDetach","rbxassetid://33169583",true},
+	{"SwordSlice","rbxassetid://35978879",false},
+	{"InsaneArms","rbxassetid://27432691",true}
 }
 
-for _, n in pairs(names) do
-	createButton(n)
+for index,data in ipairs(animations) do
+	createButton(data[1],index)
 end
 
-local function updateCanvasSize()
-	local count = #names
-	local cols = 3
-	local rows = math.ceil(count / cols)
-	local cellH = 42
-	local padH = 8
-	local topPad = 6
-	local botPad = 6
-	local totalH = topPad + rows * cellH + (rows - 1) * padH + botPad
+local function bind(button,id,loop)
+	local anim=Instance.new("Animation")
+	anim.AnimationId=id
 
-	scroll.CanvasSize = UDim2.new(0,0,0,totalH)
-end
-
-updateCanvasSize()
-
-local function bind(btn, id, loop)
-	local anim = Instance.new("Animation")
-	anim.AnimationId = id
-
-	btn.MouseButton1Click:Connect(function()
-		if currentButton == btn then
+	button.MouseButton1Click:Connect(function()
+		if currentButton==button then
 			if currentTrack then
 				currentTrack:Stop(0)
-				currentTrack.TimePosition = 0
+				currentTrack.TimePosition=0
 			end
 
-			currentTrack = nil
-			currentButton = nil
-			btn.BackgroundColor3 = BTN
+			currentTrack=nil
+			currentButton=nil
+			setButtonActive(button,false)
 			return
 		end
 
@@ -286,76 +374,117 @@ local function bind(btn, id, loop)
 		end
 
 		if currentButton then
-			currentButton.BackgroundColor3 = BTN
+			setButtonActive(currentButton,false)
 		end
 
-		local track = hum:LoadAnimation(anim)
+		local track=animator:LoadAnimation(anim)
 
-		currentTrack = track
-		currentButton = btn
-		btn.BackgroundColor3 = ACTIVE
+		currentTrack=track
+		currentButton=button
+		setButtonActive(button,true)
 
 		if loop then
 			task.spawn(function()
-				while currentButton == btn and currentTrack == track do
+				while currentButton==button and currentTrack==track do
 					if not track.IsPlaying then
-						track:Play(0.1,1,1)
+						track:Play(.1,1,1)
 					end
 					task.wait()
 				end
 			end)
 		else
-			track:Play(0.1,1,1)
+			track:Play(.1,1,1)
 		end
 	end)
 end
 
-killBtn.MouseButton1Click:Connect(function()
+for _,data in ipairs(animations) do
+	bind(buttons[data[1]],data[2],data[3])
+end
+
+player.CharacterAdded:Connect(function(newCharacter)
 	if currentTrack then
-		currentTrack:Stop(0)
-		currentTrack:Destroy()
-		currentTrack = nil
+		pcall(function()
+			currentTrack:Stop(0)
+		end)
 	end
 
-	currentButton = nil
-
-	if mini then
-		mini:Destroy()
+	if currentButton then
+		setButtonActive(currentButton,false)
 	end
 
-	gui:Destroy()
+	currentTrack=nil
+	currentButton=nil
+
+	char=newCharacter
+	hum=newCharacter:WaitForChild("Humanoid")
+	animator=hum:FindFirstChildOfClass("Animator") or hum:WaitForChild("Animator")
 end)
 
-bind(buttons.Salute,"rbxassetid://186904307",true)
-bind(buttons.HeadThrow,"rbxassetid://35154961",true)
-bind(buttons.FloatingHead,"rbxassetid://121572214",false)
-bind(buttons.Crouch,"rbxassetid://182724289",false)
-bind(buttons.FloorCrawl,"rbxassetid://282574440",false)
-bind(buttons.DinoWalk,"rbxassetid://204328711",false)
-bind(buttons.JumpingJacks,"rbxassetid://429681631",false)
-bind(buttons.HeroJump,"rbxassetid://184574340",true)
-bind(buttons.Faint,"rbxassetid://181526230",false)
-bind(buttons.FloorFaint,"rbxassetid://181525546",true)
-bind(buttons.Levitate,"rbxassetid://313762630",false)
-bind(buttons.Dab,"rbxassetid://183412246",true)
-bind(buttons.Spinner,"rbxassetid://188632011",true)
-bind(buttons.FloatSit,"rbxassetid://179224234",false)
-bind(buttons.MovingDance,"rbxassetid://429703734",true)
-bind(buttons.WeirdMove,"rbxassetid://215384594",false)
-bind(buttons.GlitchLevitate,"rbxassetid://313762630",false)
-bind(buttons.SpinDance,"rbxassetid://429730430",true)
-bind(buttons.MoonDance,"rbxassetid://45834924",true)
-bind(buttons.FullPunch,"rbxassetid://204062532",true)
-bind(buttons.SpinDance2,"rbxassetid://186934910",true)
-bind(buttons.BowDown,"rbxassetid://204292303",true)
-bind(buttons.SwordSlam,"rbxassetid://204295235",true)
-bind(buttons.MegaInsane,"rbxassetid://184574340",true)
-bind(buttons.SuperPunch,"rbxassetid://126753849",true)
-bind(buttons.FullSwing,"rbxassetid://218504594",true)
-bind(buttons.ArmTurbine,"rbxassetid://259438880",false)
-bind(buttons.BarrelRoll,"rbxassetid://136801964",true)
-bind(buttons.Scared,"rbxassetid://180612465",true)
-bind(buttons.Insane,"rbxassetid://33796059",false)
-bind(buttons.ArmDetach,"rbxassetid://33169583",true)
-bind(buttons.SwordSlice,"rbxassetid://35978879",false)
-bind(buttons.InsaneArms,"rbxassetid://27432691",true)
+local mini=Instance.new("Frame",gui)
+mini.Name="R6Mini"
+mini.Size=UDim2.fromOffset(52,40)
+mini.BackgroundColor3=WINDOW
+mini.BorderSizePixel=0
+mini.ClipsDescendants=true
+mini.Active=true
+mini.Visible=false
+corner(mini,9)
+stroke(mini,WINDOW_STROKE,1.2)
+
+local restoreBtn=Instance.new("TextButton",mini)
+restoreBtn.Size=UDim2.new(1,0,1,0)
+restoreBtn.BackgroundTransparency=1
+restoreBtn.BorderSizePixel=0
+restoreBtn.AutoButtonColor=false
+restoreBtn.Text="R6"
+restoreBtn.TextSize=17
+restoreBtn.TextColor3=TEXT
+restoreBtn.FontFace=Font.new(
+	"rbxasset://fonts/families/SourceSansPro.json",
+	Enum.FontWeight.Bold,
+	Enum.FontStyle.Normal
+)
+
+restoreBtn.MouseEnter:Connect(function()
+	TweenService:Create(
+		restoreBtn,
+		TweenInfo.new(.1),
+		{TextColor3=Color3.fromRGB(200,200,208)}
+	):Play()
+end)
+
+restoreBtn.MouseLeave:Connect(function()
+	TweenService:Create(
+		restoreBtn,
+		TweenInfo.new(.1),
+		{TextColor3=TEXT}
+	):Play()
+end)
+
+makeDraggable(restoreBtn,mini)
+
+minimizeBtn.MouseButton1Click:Connect(function()
+	mini.Position=main.Position
+	main.Visible=false
+	mini.Visible=true
+end)
+
+restoreBtn.MouseButton1Click:Connect(function()
+	main.Position=mini.Position
+	mini.Visible=false
+	main.Visible=true
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+	if currentTrack then
+		pcall(function()
+			currentTrack:Stop(0)
+			currentTrack:Destroy()
+		end)
+		currentTrack=nil
+	end
+
+	currentButton=nil
+	gui:Destroy()
+end)
